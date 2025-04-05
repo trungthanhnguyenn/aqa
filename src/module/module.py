@@ -16,27 +16,31 @@ class BaseModule:
     def tokenizer(self):
         return self._tokenizer
 
-    def __init__(self, model_name: str, model_version: int, model_server_url: str, is_grpc: bool = False):
-
+    def __init__(self, model_path: str, model_name: str, model_version: int, model_server_url: str, is_grpc: bool = False, **kwargs):
+        # 
+        model_name_or_path = os.path.join(model_path, model_name, str(model_version))
+        # 
         self._tokenizer = AutoTokenizer.from_pretrained(
-            os.path.join("/rtvserving_models", model_name, str(model_version))
+            model_name_or_path, **kwargs,
         )
+        #
         self._model = TritonModel(
             model=model_name,                 # Model name.
             version=model_version,            # Model version.
             url=model_server_url,              # Triton Server URL.
             grpc=is_grpc                      # Use gRPC or Http.
         )
-        self._config = self.read_config_model(model_name, model_version)
+        #
+        self._config = self.read_config_model(model_name_or_path)
 
-    def read_config_model(self, model_name: str, model_version: str):
+    def read_config_model(self, model_name_or_path: str):
         """
         Get the config of the model
         """
-        model_path = os.path.join("/rtvserving_models", model_name, str(model_version), "config.json")
-        if not os.path.exists(model_path):
+        config_path = os.path.join(model_name_or_path, "config.json")
+        if not os.path.exists(config_path):
             return {"Error": "Model not found!"}
-        with open(model_path, "r") as f:
+        with open(config_path, "r") as f:
             config = json.load(f)
         return config
 
@@ -89,29 +93,6 @@ class RerankModule(BaseModule):
 
 class ChunkerModule(BaseModule):
 
-    def __init__(self, model_name: str, model_version: int, model_server_url: str, is_grpc: bool = False):
-
-        self._tokenizer = AutoTokenizer.from_pretrained("facebookAI/xlm-roberta-base")
-        self._model = TritonModel(
-            model=model_name,                 # Model name.
-            version=model_version,            # Model version.
-            url=model_server_url,              # Triton Server URL.
-            grpc=is_grpc                      # Use gRPC or Http.
-        )
-        self._config = self.read_config_model(model_name, model_version)
-        # View metadata.
-
-    def read_config_model(self, model_name: str, model_version: str):
-        """
-        Get the config of the model
-        """
-        model_path = os.path.join("/sat_chunker_models", model_name, str(model_version), "model.json")
-        if not os.path.exists(model_path):
-            return {"Error": "Model not found!"}
-        with open(model_path, "r") as f:
-            config = json.load(f)
-        return config
-    
     def chunking(self, text: str) -> List:
         
         texts_token = self._tokenizer(
@@ -151,7 +132,7 @@ class ChunkerModule(BaseModule):
         all_index = [index + 1 for index, value in enumerate(outputs) if value > 0]
         all_index = [start + index for index in all_index]
         texts_responses.extend(all_index)
-        # 
+        # decode
         start = 0
         return_value = []
         if texts_responses == []:
@@ -166,27 +147,39 @@ class ChunkerModule(BaseModule):
 
 
 
-class LLMModule:
+class LLMModule(BaseModule):
 
     @property
     def config(self):
         return self._config
 
-    def __init__(self, model_name: str, model_server_url: str, tokenizer_name: str, streaming: bool):
-        self.model_url = model_server_url
-        self.model_name = model_name
-        self._config = self.read_config_model(model_name, 1)
-        self.streaming = streaming
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, token=os.environ.get("HF_TOKEN"))
+    # override the new TritonModel
+    def __init__(self, model_path: str, model_name: str, model_version: int, model_server_url: str, is_grpc: bool = False, **kwargs):
+        # 
+        model_name_or_path = os.path.join(model_path, model_name, str(model_version))
+        # 
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            model_name_or_path, **kwargs,
+        )
+        #
+        self._model = TritonLLM(
+            model=model_name,                 # Model name.
+            version=model_version,            # Model version.
+            url=model_server_url,              # Triton Server URL.
+            grpc=is_grpc                      # Use gRPC or Http.
+        )
+        #
+        self._config = self.read_config_model(model_name, model_version)
 
-    def read_config_model(self, model_name: str, model_version: str):
+    # override name of config
+    def read_config_model(self, model_name_or_path: str):
         """
         Get the config of the model
         """
-        model_path = os.path.join("/models", model_name, str(model_version), "model.json")
-        if not os.path.exists(model_path):
+        config_path = os.path.join(model_name_or_path, "model.json")
+        if not os.path.exists(config_path):
             return {"Error": "Model not found!"}
-        with open(model_path, "r") as f:
+        with open(config_path, "r") as f:
             config = json.load(f)
         return config
 
