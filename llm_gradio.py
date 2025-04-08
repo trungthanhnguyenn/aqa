@@ -8,9 +8,9 @@ import glob
 import hashlib
 from typing import List
 import time
-from pypdf import PdfReader
-import docx
 import jinja2
+
+from src.utils.utils import read_file
 
 load_dotenv()
 
@@ -24,27 +24,6 @@ GOOGLE_URL_API = os.environ.get("GOOGLE_URL_API", "")
 # Function
 ##########
 
-def read_file(file_path):
-    if file_path.endswith(".pdf"):
-        pdf = PdfReader(file_path)
-        text = ""
-        for page in pdf.pages:
-            text += page.extract_text()
-        return text
-        
-    elif file_path.endswith(".docx"):
-        doc = docx.Document(file_path)
-        text = ""
-        for para in doc.paragraphs:
-            text += para.text + "\n"
-        return text
-    
-    elif file_path.endswith(".txt"):
-        # Read text file
-        with open(file_path, "r", encoding="utf-8") as f:
-            return f.read()
-    else:
-        raise ValueError("Unsupported file format. Only .txt files are supported.")
     
 def handle_file_upload(files):
     """
@@ -66,36 +45,7 @@ def handle_file_upload(files):
             return status
     return "No file uploaded."
     
-def merge_subtexts_fix(list_sub_text, max_tokens=512):
-    merged_texts = []  
-    current_num_token = 0
-    current_merge = ""  
-
-    for subtext in list_sub_text:
-
-        text_responses =requests.post(
-            url=f"{API_URL}/tokenize_ctx",
-            params={
-                'text': subtext
-            },
-        ).json()
-        print("text_responses", text_responses)
-        num_chars = np.shape(text_responses['input_ids'])[-1]
-        
-        if current_num_token + num_chars > max_tokens:
-            if current_merge:  
-                merged_texts.append(current_merge.strip())
-            current_num_token = num_chars
-            current_merge = subtext 
-        else:
-            current_num_token += num_chars
-            current_merge += " " + subtext 
-            
-    if current_merge:
-        merged_texts.append(current_merge.strip())
-    return merged_texts
     
-
 def insert_docs(docs_path: str):
     # read doc
     file_paths = glob.glob(docs_path)
