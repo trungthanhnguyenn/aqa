@@ -2,10 +2,14 @@ from typing import List, Dict, Any
 from src.module.module import BaseModule, LLMModule
 from src.services.interface import InterfaceService
 from src.db.interface import InterfaceDatabase
+from src.utils.utils import read_file
 
 import hashlib
 import json
 import os
+import numpy as np
+import glob 
+ 
 
 class ServicesV1(InterfaceService):
     """Manager for Services"""
@@ -62,16 +66,31 @@ class ServicesV1(InterfaceService):
             return {"Error": f"Error inserting chunks: {e}"}
         return {"Success": "Chunks inserted!"}
     
-    def get_config_model(self, model_name: str, model_version: str):
-        """
-        Get the config of the model
-        """
-        model_path = os.path.join("/models", model_name, str(model_version), "config.json")
-        if not os.path.exists(model_path):
-            return {"Error": "Model not found!"}
-        with open(model_path, 'r') as f:
-            dict = json.load(f)
-        return dict
+    def merge_subtexts_fix(self, list_sub_text, max_tokens=None):
+        merged_texts = []  
+        current_num_token = 0
+        current_merge = ""  
+        # 
+        if max_tokens is None:
+            max_tokens = self.context_module.tokenizer.model_max_length
+        #
+        for subtext in list_sub_text:
+            # 
+            text_responses = self.context_module.tokenizer(subtext)
+            num_chars = np.shape(text_responses['input_ids'])[-1]
+            #
+            if current_num_token + num_chars > max_tokens:
+                if current_merge:  
+                    merged_texts.append(current_merge.strip())
+                current_num_token = num_chars
+                current_merge = subtext 
+            else:
+                current_num_token += num_chars
+                current_merge += " " + subtext 
+        #
+        if current_merge:
+            merged_texts.append(current_merge.strip())
+        return merged_texts
     
     def rerank(self, query: str, chunks: List[dict], **kwargs) -> List[Dict[str, Any]]:
         """
@@ -87,14 +106,6 @@ class ServicesV1(InterfaceService):
         # sort by score
         sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
         return [chunk for chunk, score in sorted_chunks]
-
-    def ctx_tokenizer(self, text: str) -> List:
-        # tokenizer text
-        return self.context_module.tokenizer(
-            text,
-            truncation=True, 
-            return_tensors="np"
-        )
 
     def chunking(self, text: str) -> List:
         # tokenizer text

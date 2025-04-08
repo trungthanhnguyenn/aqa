@@ -176,15 +176,44 @@ async def retrieve_chunks(query: str, is_rerank: bool = False) -> JSONResponse:
 
 class Item(BaseModel):
     text: str
+    metadata: dict = None
 
 # send n docs to the server
 @app.post("/documents")
 async def chunker(request: Item) -> JSONResponse:
-    #
-    return_value = services.chunking(request.text)
-    if not return_value:
-        return JSONResponse(content={"Error": "No chunks found!"})
-    return JSONResponse(content=return_value)
+    # chunking
+    chunks = services.chunking(request.text)
+    max_chars = services.context_module.tokenizer.model_max_length # 512
+    merge_chunks = services.merge_subtexts_fix(
+        chunks, 
+        max_tokens=max_chars
+    )
+    # format to db
+    format_insert_chunks = [
+        {
+            "filename": request.metadata.get("filename", "unknown"),
+            "file_size": request.metadata.get("file_size", 0),
+            "created_time": request.metadata.get("created_time", 0),
+            "text": sub_text,
+        }
+        for sub_text in merge_chunks 
+    ]
+    # insert to db
+    try:
+        for i in range(0, len(format_insert_chunks), 4):
+            batch_text_format = format_insert_chunks[i:i+4]
+            # insert chunks to db
+            response = await services.insert_chunks(batch_text_format)
+            if response.status_code != 200:
+                print(response.json())
+                return JSONResponse(content={"error": "Insert chunks failed!"}, status_code=500)
+        
+        return JSONResponse(content={
+            "success": f"Insert number of {len(format_insert_chunks)} to {settings.qdrant_collection_name} DB successfully!"
+        })
+    
+    except Exception as e:
+        return JSONResponse(content={"error": "Insert chunks failed!"})
 
 
 @app.post("/generate_stream")
@@ -225,18 +254,6 @@ async def generate(request: Request) -> JSONResponse:
     }
     return JSONResponse(content=services.llm_module.generate(payload=payload))
 
-@app.post("/tokenize_ctx")
-async def tokenize_ctx(text: str) -> JSONResponse:
-    """
-    """
-    # call tokenizer
-    tokenized_text = services.ctx_tokenizer(text)
-    tokenized_text = {
-        "input_ids": tokenized_text["input_ids"].tolist(),
-        "attention_mask": tokenized_text["attention_mask"].tolist(),
-        "token_type_ids": tokenized_text["token_type_ids"].tolist(),
-    }
-    return JSONResponse(content=tokenized_text)
 
 @app.post("/chat_template")
 async def chat_template(text: str) -> JSONResponse:
