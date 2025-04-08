@@ -31,7 +31,7 @@ class BaseModule:
             grpc=is_grpc                      # Use gRPC or Http.
         )
         #
-        self._config = self.read_config_model(model_name_or_path)
+        self._config = self.read_config_model(model_name_or_path, **kwargs)
 
     def read_config_model(self, model_name_or_path: str, **kwargs):
         """
@@ -174,19 +174,8 @@ class LLMModule(BaseModule):
             grpc=is_grpc                      # Use gRPC or Http.
         )
         #
-        self._config = self.read_config_model(model_name, model_version)
+        self._config = self.read_config_model(model_name_or_path, **kwargs)
 
-    # override name of config
-    def read_config_model(self, model_name_or_path: str):
-        """
-        Get the config of the model
-        """
-        config_path = os.path.join(model_name_or_path, "model.json")
-        if not os.path.exists(config_path):
-            return {"Error": "Model not found!"}
-        with open(config_path, "r") as f:
-            config = json.load(f)
-        return config
 
     async def fetch_vllm_stream(self, payload):
         """
