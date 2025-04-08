@@ -10,6 +10,7 @@ from typing import List
 import time
 from pypdf import PdfReader
 import docx
+import jinja2
 
 load_dotenv()
 
@@ -125,39 +126,18 @@ def insert_docs(docs_path: str):
         # chunking
         chunks = requests.post(
             f"{API_URL}/documents", 
-            json={"text": doc}
-        )
-        chunks = chunks.json()
-        print(chunks)
-        # merge subtexts
-        max_chars = 512 # ctx tokenizer max length
-        merge_chunks = merge_subtexts_fix(
-            chunks, 
-            max_tokens=max_chars
-        )
-
-        # format to db
-        format_insert_chunks = [
-            {
-                "filename": filename,
-                "file_size": file_size,
-                "created_time": created_time,
-                "chunker": "sati",
-                "text": sub_text,
+            json={
+                "text": doc, 
+                "metadata": {
+                    "filename": filename,
+                    "file_size": file_size,
+                    "created_time": created_time,
+                }
             }
-            for sub_text in merge_chunks 
-        ]
-        # insert to db
-        for i in range(0, len(format_insert_chunks), 4):
-            batch_text_format = format_insert_chunks[i:i+4]
-            batch_text_embed = requests.post(
-                url=f"{API_URL}/chunks",
-                json=batch_text_format,
-            )
-            if batch_text_embed.status_code != 200:
-                print(batch_text_embed.json())
-                break
-
+        ).json()
+        if chunks.get("error"):
+            print("Error inserting chunks:", chunks.get("error"))
+            continue
     return "Insert docs successfully"
 
 def retrieve_docs(query: str, top_k: int = 5):
@@ -186,9 +166,12 @@ def parse_prompt_template(instruction: str, query: str, chunks: List[str], promp
     #     query=query,
     #     context=context_template,
     # )
-    prompt_template = f"""
-    Cho đoạn văn: {context_template}. Trả lời bằng tiếng việt và viết lại đoạn văn cho phù hợp với câu hỏi: {query}
-    """  
+    
+    prompt_template = open("templates/prompt.txt", "r").read()
+    prompt_template = jinja2.Template(prompt_template).render(
+        context=context_template,
+        prompt=query,
+    )
 
     prompt = requests.post(
         url=f"{API_URL}/chat_template",

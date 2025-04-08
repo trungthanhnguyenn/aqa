@@ -1,0 +1,1 @@
+Cho đoạn văn: {{ context }}. Trả lời bằng tiếng Việt và viết lại đoạn văn cho phù hợp với câu hỏi: {{ query }}
