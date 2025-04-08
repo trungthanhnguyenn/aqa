@@ -1,0 +1,14 @@
+fastapi[all] 
+trism 
+python-dotenv 
+ray[serve] 
+tritonclient[all] 
+attrdict 
+qdrant_client
+numpy>=2
+transformers
+PyJWT
+pydantic_settings
+gradio
+python-docx
+pypdf
