@@ -166,7 +166,7 @@ class LLMModule(BaseModule):
         self._tokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path, **kwargs,
         )
-        #
+        #! FIX
         self._model = TritonLLM(
             model=model_name,                 # Model name.
             version=model_version,            # Model version.
@@ -177,6 +177,7 @@ class LLMModule(BaseModule):
         self._config = self.read_config_model(model_name_or_path, **kwargs)
 
 
+    #! FIX
     async def fetch_vllm_stream(self, payload):
         """
         Gửi request đến Triton và xử lý response dạng streaming từng token.

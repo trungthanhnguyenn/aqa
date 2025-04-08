@@ -136,7 +136,7 @@ class QdrantChunksDB(InterfaceDatabase):
                         points=chunk_ids,
                     ),
                 )
-                return {'status': 'success', 'message': f"Chunks [{chunk_ids}] deleted!"}
+                return {'status': 'success', 'message': f"Chunks {chunk_ids} deleted!"}
             elif doc_id is not None:
                 self._client.delete(
                     collection_name=chunker_id,
