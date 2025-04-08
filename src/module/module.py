@@ -33,26 +33,31 @@ class BaseModule:
         #
         self._config = self.read_config_model(model_name_or_path)
 
-    def read_config_model(self, model_name_or_path: str):
+    def read_config_model(self, model_name_or_path: str, **kwargs):
         """
         Get the config of the model
         """
-        config_path = os.path.join(model_name_or_path, "config.json")
+        config_file_name = kwargs.get('config_file_name', None)
+        config_path = os.path.join(model_name_or_path, config_file_name)
         if not os.path.exists(config_path):
-            return {"Error": "Model not found!"}
-        with open(config_path, "r") as f:
-            config = json.load(f)
-        return config
+            return {"error": f"Config file {config_file_name} not found!"}
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+            return config
+        except json.JSONDecodeError:
+            return {"error": f"Config file {config_file_name} is not a valid JSON!"}
 
 class EmbeddingModule(BaseModule):
 
     def embed(self, texts: List[str], **kwargs) -> List[List[float]]:
         text_responses = self._tokenizer(
             texts, 
-            padding=True, 
-            truncation=True, 
-            return_tensors="np"
+            **kwargs
         )
+        # padding=True, 
+        # truncation=True, 
+        # return_tensors="np"
         try:
             outputs: Dict[Any] = self._model.run(data = [
                 text_responses['input_ids'], 
@@ -69,13 +74,13 @@ class EmbeddingModule(BaseModule):
 
 class RerankModule(BaseModule):
     # Encode text
-    def rerank(self, query: str, context: str):
+    def rerank(self, query: str, context: str, **kwargs) -> List[float]:
 
         # Tokenize sentences
         encoded_pair = self._tokenizer(
             query,
             context,
-            return_tensors="pt",
+            **kwargs,  # return_tensors="pt"
         )
         for key in encoded_pair:
             encoded_pair[key] = encoded_pair[key].numpy()
