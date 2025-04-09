@@ -1,52 +1,20 @@
 volumes:
-  rtvserving_data:
-  sati_data:
+  predown_models:
   deepseek_data:
 
 services:
-  rtvserving:
-    image: heronq02/modelhub:rtvserving-hieupth-tritonserver24.12-tensorrt_2412
+  rag:
+    image: heronq02/tritonserver:24.12-cpuonly
     volumes:
-      - rtvserving_data:/models
+      - predown_models:/models
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/127.0.0.1/8000"]
       interval: 30s
       timeout: 2m
       retries: 2
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - driver: nvidia
-            device_ids: ['0']
-            capabilities: [gpu]
-    command: >
-      bash -c """tritonserver --model-repository=/models"""
 
-  sat_chunker:
-    image: presencesw/sat_chunker:24.12
-    ports:
-    environment:
-      CHUNKER_NAME: "sat_chunker"
-    volumes:
-      - sati_data:/models
-    healthcheck:
-      test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/127.0.0.1/8000"]
-      interval: 30s
-      timeout: 2m
-      retries: 2
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
-              device_ids: ["0"]
-    command: >
-      bash -c "python3 -u choose_mode.py && tritonserver --model-repository=/models"
-
-  deepseek:
-    image: presencesw/llamax3-8b-alpaca:24.12
+  llm:
+    image: presencesw/meta-llama-3-8b-instruct-gguf:24.12
     volumes:
       - ./models:/models
     healthcheck:
@@ -79,8 +47,7 @@ services:
   dsclient:
     image: heronq02/dsclient:24.12
     volumes:
-      - rtvserving_data:/rtvserving_models
-      - sat_chunker_data:/sat_chunker_models
+      - predown_models:/predown_models
       - ./llm_gradio.py:/llm_gradio.py
       - ./mainapi.py:/mainapi.py
       - ./scripts:/scripts
@@ -89,15 +56,12 @@ services:
       - .env
     tty: true
     links:
-      - rtvserving:rtvserving
-      - sat_chunker:sat_chunker
-      - deepseek:deepseek
+      - rag:rag
+      - llm:llm
     depends_on:
-      rtvserving:
+      rag:
         condition: service_healthy
-      sat_chunker:
-        condition: service_healthy
-      deepseek:
+      llm:
         condition: service_healthy
 
     ports:
