@@ -175,6 +175,8 @@ class LLMModule(BaseModule):
         )
         #
         self._config = self.read_config_model(model_name_or_path, **kwargs)
+        self.model_url = model_server_url
+        self.model_name = model_name
 
     async def generate_stream(self, payload: Dict[str, Any]) -> AsyncGenerator:
         """
