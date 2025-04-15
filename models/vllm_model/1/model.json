@@ -1,5 +1,5 @@
 {
-    "model":"/weights/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct.Q4_K_M.gguf",
+    "model":"/weights/LLaMAX3-8B-Alpaca/LLaMAX3-8B-Alpaca.Q5_K_M.gguf",
     "disable_log_requests": true,
     "gpu_memory_utilization": 0.85,
     "max_model_len": 3392,
