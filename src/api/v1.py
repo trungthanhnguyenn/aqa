@@ -56,7 +56,8 @@ chunker_module = ChunkerModule(
 # LLM Configs
 llm_module = LLMModule(
     model_path=settings.llm_model_serving_path,
-    model_name=settings.model_llm_name,
+    model_name=settings.llm_model_name,
+    model_version=settings.llm_model_version,
     model_server_url=settings.llm_triton_url,
     tokenizer_name=settings.llm_tokenizer_name,
     streaming=settings.streaming_response,

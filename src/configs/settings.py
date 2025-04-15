@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     chunker_batch_size: int = None
     # 
     llm_config_file_name: str = None
-    model_llm_name: str = None
+    llm_model_name: str = None
+    llm_model_version: int = None
     llm_tokenizer_name: str = None
     streaming_response: bool = False
     # 
