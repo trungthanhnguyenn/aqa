@@ -242,7 +242,7 @@ async def generate_stream(request: Request):
         "parameters": sampling_parameters,
     }
     return StreamingResponse(
-        services.llm_module.fetch_vllm_stream(payload=payload), 
+        services.llm_module.generate_stream(payload=payload), 
         media_type="application/json"
     )
 
