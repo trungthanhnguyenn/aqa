@@ -1,9 +1,9 @@
-from typing import List, Dict, Any, Tuple
-from trism import TritonModel
+from typing import List, Dict, Any, Tuple, AsyncGenerator
+from trism import TritonModel, TritonLMModel
 from transformers import AutoTokenizer
 import numpy as np
 import json
-import httpx
+import requests
 import os
 
 class BaseModule:
@@ -166,53 +166,44 @@ class LLMModule(BaseModule):
         self._tokenizer = AutoTokenizer.from_pretrained(
             model_name_or_path, **kwargs,
         )
-        #! FIX
-        self._model = TritonLLM(
+        #
+        self._model = TritonLMModel(
             model=model_name,                 # Model name.
             version=model_version,            # Model version.
             url=model_server_url,              # Triton Server URL.
-            grpc=is_grpc                      # Use gRPC or Http.
+            stream=True                      # Use gRPC or Http.
         )
         #
         self._config = self.read_config_model(model_name_or_path, **kwargs)
 
-
-    #! FIX
-    async def fetch_vllm_stream(self, payload):
+    async def generate_stream(self, payload: Dict[str, Any]) -> AsyncGenerator:
         """
-        Gửi request đến Triton và xử lý response dạng streaming từng token.
-        - ✅ Đẩy từng token lên API ngay lập tức.
-        - ✅ Kiểm tra xem Triton có gửi token trùng hay không.
-        - ✅ Xóa khoảng trắng dư thừa giữa các từ.
+        Generate text using the model with streaming.
         """
-        global previous_token
-        previous_token = None 
-
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            model_url = f"http://{self.model_url}/v2/models/{self.model_name}/generate_stream"
-            async with client.stream("POST", model_url, json=payload) as response:
-                if response.status_code != 200:
-                    error_msg = json.dumps({
-                        "error": f"Server returned {response.status_code}",
-                        "detail": (await response.aread()).decode("utf-8")
-                    })
-                    print(error_msg)
-                    # yield f"{error_msg}\n\n"
-                    yield ""
-                    return
-
-                async for line in response.aiter_lines():
-                    if line:
-                        try:
-                            clean_line = line.replace("data: ", "", 1)
-                            data = json.loads(clean_line)
-                            text_output = data.get("text_output", "")
-                            yield text_output
-                                
-                        except json.JSONDecodeError:
-                            error_msg = json.dumps({"error": "JSON parse error", "raw": clean_line})
-                            # yield f"{error_msg}\n\n"
-                            print(error_msg)
-                            yield ""
+        async for token in self._model.run(
+            prompt=payload["prompt"],
+            sampling_parameters=payload["sampling_parameters"],
+            show_thinking=payload.get("show_thinking", False)
+        ):
+            # print(token)
+            yield token
 
 
+    def generate(self, payload: Dict[str, Any]) -> str:
+        """
+        Generate text using the model.
+        """
+        model_url = f"http://{self.model_url}/v2/models/{self.model_name}/generate"
+        responses = requests.post(
+            url=model_url,
+            json=payload
+        )
+        if responses.status_code != 200:
+            error_msg = json.dumps({
+                "error": f"Server returned {responses.status_code}",
+                "detail": responses.text
+            })
+            print(error_msg)
+            return ""
+    
+        return responses.json()['text_output']
