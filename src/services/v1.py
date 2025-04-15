@@ -32,7 +32,12 @@ class ServicesV1(InterfaceService):
 
     def retrieve_chunks(self, query: str, chunker_id, **kwargs) -> List[Dict[str, Any]]:
         # cast List to query here
-        query_embed = self.query_module.embed([query])
+        query_embed = self.query_module.embed(
+            [query],
+            padding=True, 
+            truncation=True, 
+            return_tensors="np"
+        )
         # search for chunks
         retrieve_chunks = self.chunk_db.search(
             chunk_emb=query_embed[0], # List[List[float]] -> List[float] 
@@ -54,7 +59,12 @@ class ServicesV1(InterfaceService):
         # format the chunks
         texts = [chunk['text'] for chunk in chunks]
         ids = [hashlib.md5(text.encode()).hexdigest() for text in texts]
-        embeds = self.context_module.embed(texts)
+        embeds = self.context_module.embed(
+            texts,
+            padding=True, 
+            truncation=True, 
+            return_tensors="np"
+        )
         insert_dicts = {
             'ids': ids,
             'payloads': [chunk for chunk in chunks],
@@ -101,7 +111,11 @@ class ServicesV1(InterfaceService):
         # rerank
         scores = []
         for i in range(0, len(chunks)):
-            score = self.rerank_module.rerank(query, chunks[i]['payload']['text'])
+            score = self.rerank_module.rerank(
+                query, 
+                chunks[i]['payload']['text'],
+                return_tensors="pt"
+            )
             scores.append(score)
         # sort by score
         sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
