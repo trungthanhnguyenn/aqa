@@ -32,7 +32,7 @@ context_module = EmbeddingModule(
     model_version=settings.ctx_model_version,
     model_server_url=settings.rtv_triton_url,
     is_grpc=grpc,
-    config_file_name=settings.ctx_config_name_file,
+    config_file_name=settings.ctx_config_file_name,
 )
 rerank_module = RerankModule(
     model_path=settings.rtv_model_serving_path,

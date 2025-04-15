@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     query_model_version: int = None
     query_batch_size: int = None
     #
-    ctx_config_name_file: str = None
+    ctx_config_file_name: str = None
     ctx_model_name: str = None
     ctx_model_version: int = None
     ctx_batch_size: int = None
