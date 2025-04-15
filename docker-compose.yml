@@ -7,6 +7,8 @@ services:
     image: heronq02/tritonserver:24.12-cpuonly
     volumes:
       - predown_models:/models
+    env_file:
+      - .env
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/127.0.0.1/8000"]
       interval: 30s
@@ -14,7 +16,7 @@ services:
       retries: 2
 
   llm:
-    image: presencesw/meta-llama-3-8b-instruct-gguf:24.12
+    image: presencesw/llamax3-8b-alpaca:24.12
     volumes:
       - ./models:/models
     healthcheck:
