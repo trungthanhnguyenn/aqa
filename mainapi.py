@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 
 class Settings(BaseSettings):
+    #
     query_model_name: str = None
     query_model_version: int = None
     query_batch_size: int = None
@@ -24,16 +25,19 @@ class Settings(BaseSettings):
     rerank_model_version: int = None
     rerank_batch_size: int = None
     rtv_triton_url: str = "localhost:8000"
+    rtv_model_serving_path: str = "/models"
     #
     chunker_model_name: str = None
     chunker_model_version: int = None
     chunker_batch_size: int = None
     sati_triton_url: str = "localhost:8000"
+    sati_model_serving_path: str = "/models"
     # 
-    llm_triton_url: str = "localhost:8000"
     model_llm_name: str = None
     llm_tokenizer_name: str = None
     streaming_response: bool = False
+    llm_triton_url: str = "localhost:8000"
+    llm_model_serving_path: str = "/models"
     # 
     protocol: str = "HTTP"
     verbose: bool = False
@@ -55,18 +59,21 @@ grpc = settings.protocol.lower() == "grpc"
 
 # rtv
 query_module = EmbeddingModule(
+    model_path=settings.rtv_model_serving_path,
     model_name=settings.query_model_name,
     model_version=settings.query_model_version,
     model_server_url=settings.rtv_triton_url,
     is_grpc=grpc
 )
 context_module = EmbeddingModule(
+    model_path=settings.rtv_model_serving_path,
     model_name=settings.ctx_model_name,
     model_version=settings.ctx_model_version,
     model_server_url=settings.rtv_triton_url,
     is_grpc=grpc
 )
 rerank_module = RerankModule(
+    model_path=settings.rtv_model_serving_path,
     model_name=settings.rerank_model_name,
     model_version=settings.rerank_model_version,
     model_server_url=settings.rtv_triton_url,
@@ -75,6 +82,7 @@ rerank_module = RerankModule(
 
 # chunker
 chunker_module = ChunkerModule(
+    model_path=settings.sati_model_serving_path,
     model_name=settings.chunker_model_name,
     model_version=settings.chunker_model_version,
     model_server_url=settings.sati_triton_url,
@@ -83,6 +91,7 @@ chunker_module = ChunkerModule(
 
 # llm
 llm_module = LLMModule(
+    model_path=settings.llm_model_serving_path,
     model_name=settings.model_llm_name,
     model_server_url=settings.llm_triton_url,
     tokenizer_name=settings.llm_tokenizer_name,
