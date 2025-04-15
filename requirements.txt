@@ -1,5 +1,6 @@
 fastapi[all] 
-trism 
+# trism 
+git+https://github.com/hungnq1310/trism_lm.git@0.0.1-1#egg=trism
 python-dotenv 
 ray[serve] 
 tritonclient[all] 
