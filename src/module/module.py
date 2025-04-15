@@ -161,10 +161,12 @@ class LLMModule(BaseModule):
     # override the new TritonModel
     def __init__(self, model_path: str, model_name: str, model_version: int, model_server_url: str, is_grpc: bool = False, **kwargs):
         # 
-        model_name_or_path = os.path.join(model_path, model_name, str(model_version))
+        tokenizer_name = kwargs.get('tokenizer_name', None)
+        if tokenizer_name is None:
+            tokenizer_name = os.path.join(model_path, model_name, str(model_version))
         # 
         self._tokenizer = AutoTokenizer.from_pretrained(
-            model_name_or_path, **kwargs,
+            tokenizer_name, **kwargs,
         )
         #
         self._model = TritonLMModel(
@@ -174,6 +176,7 @@ class LLMModule(BaseModule):
             stream=True                      # Use gRPC or Http.
         )
         #
+        model_name_or_path = os.path.join(model_path, model_name, str(model_version))
         self._config = self.read_config_model(model_name_or_path, **kwargs)
         self.model_url = model_server_url
         self.model_name = model_name
