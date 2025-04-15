@@ -23,21 +23,24 @@ query_module = EmbeddingModule(
     model_name=settings.query_model_name,
     model_version=settings.query_model_version,
     model_server_url=settings.rtv_triton_url,
-    is_grpc=grpc
+    is_grpc=grpc,
+    config_file_name=settings.query_config_file_name,
 )
 context_module = EmbeddingModule(
     model_path=settings.rtv_model_serving_path,
     model_name=settings.ctx_model_name,
     model_version=settings.ctx_model_version,
     model_server_url=settings.rtv_triton_url,
-    is_grpc=grpc
+    is_grpc=grpc,
+    config_file_name=settings.ctx_config_name_file,
 )
 rerank_module = RerankModule(
     model_path=settings.rtv_model_serving_path,
     model_name=settings.rerank_model_name,
     model_version=settings.rerank_model_version,
     model_server_url=settings.rtv_triton_url,
-    is_grpc=grpc
+    is_grpc=grpc,
+    config_file_name=settings.rerank_config_file_name,
 )
 
 # Chunker Configs
@@ -46,7 +49,8 @@ chunker_module = ChunkerModule(
     model_name=settings.chunker_model_name,
     model_version=settings.chunker_model_version,
     model_server_url=settings.sati_triton_url,
-    is_grpc=grpc
+    is_grpc=grpc,
+    config_file_name=settings.chunker_config_file_name,
 )
 
 # LLM Configs
@@ -55,7 +59,8 @@ llm_module = LLMModule(
     model_name=settings.model_llm_name,
     model_server_url=settings.llm_triton_url,
     tokenizer_name=settings.llm_tokenizer_name,
-    streaming=settings.streaming_response
+    streaming=settings.streaming_response,
+    config_file_name=settings.llm_config_file_name,
 )
 
 # Database Configs
@@ -145,8 +150,8 @@ async def chunker(request: Item) -> JSONResponse:
     ]
     # insert to db
     try:
-        for i in range(0, len(format_insert_chunks), 4):
-            batch_text_format = format_insert_chunks[i:i+4]
+        for i in range(0, len(format_insert_chunks), settings.ctx_batch_size):
+            batch_text_format = format_insert_chunks[i:i+settings.ctx_batch_size]
             # insert chunks to db
             response = await services.insert_chunks(batch_text_format)
             if response.status_code != 200:
