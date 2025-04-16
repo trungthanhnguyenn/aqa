@@ -4,7 +4,7 @@ fastapi run /mainapi.py --host 0.0.0.0 &
 TRITON_PID=$!
 echo "Started Fastapi with PID ${TRITON_PID}"
 
-# sleep 400
+sleep 10
 
 python3 /llm_gradio.py &
 RUNPOD_PID=$!
