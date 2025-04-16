@@ -7,6 +7,7 @@ services:
     image: heronq02/tritonserver:24.12-cpuonly
     volumes:
       - predown_models:/models
+      - ./conf.d:/conf.d
     env_file:
       - .env
     healthcheck:
@@ -28,7 +29,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ['1']
+              device_ids: ['0']
               capabilities: [gpu]
     command: >
       bash -c """pip install torch 'gguf>=0.10' && tritonserver --model-repository=/models"""
@@ -50,10 +51,7 @@ services:
     image: heronq02/dsclient:24.12
     volumes:
       - predown_models:/predown_models
-      - ./llm_gradio.py:/llm_gradio.py
-      - ./mainapi.py:/mainapi.py
-      - ./scripts:/scripts
-      - ./src:/src
+      - ./docs:/docs
     env_file:
       - .env
     tty: true
@@ -70,5 +68,5 @@ services:
       - "2222:8000"
       - "2223:7860"
     command: >
-      bash -c """bash /scripts/run.sh"""
+      bash -c """bash /scripts/run_api.sh"""
 
