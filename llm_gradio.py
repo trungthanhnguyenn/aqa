@@ -9,6 +9,7 @@ import hashlib
 from typing import List
 import time
 import jinja2
+import logging
 
 from src.utils.utils import read_file
 
@@ -52,9 +53,11 @@ def insert_docs(docs_path: str):
     cache_doc_file = "cache.txt"
     if not os.path.exists(cache_doc_file):
         # create file
+        logging.info("Cache file not found, creating a new one.")
         with open("cache.txt", "w") as f:
             f.write("")
     else:
+        logging.info("Cache file found, reading existing hashes.")
         with open("cache.txt", "r") as f:
             cache_doc_file = f.read().split("\n")
 
@@ -74,7 +77,7 @@ def insert_docs(docs_path: str):
         file_stat = os.stat(file)
         created_time = file_stat.st_ctime  # Creation time
         # chunking
-        chunks = requests.post(
+        chunks_status = requests.post(
             f"{API_URL}/documents", 
             json={
                 "text": doc, 
@@ -85,10 +88,10 @@ def insert_docs(docs_path: str):
                 }
             }
         ).json()
-        if chunks.get("error"):
-            print("Error inserting chunks:", chunks.get("error"))
+        if chunks_status.get("error"):
+            print("Error inserting chunks:", chunks_status.get("error"))
             continue
-    return "Insert docs successfully"
+    return chunks_status
 
 def retrieve_docs(query: str, top_k: int = 5):
     response = requests.post(
@@ -143,8 +146,7 @@ def run(
     temperature: float,
     top_p: float,
     rp: float
-    ):
-    
+    ): 
     print(f'Question is - {source_text}')
     
     # chunks
@@ -155,6 +157,7 @@ def run(
             "is_rerank": False
         },
     ).json()
+    print("retrieve_chunks", retrieve_chunks)
     retrieve_chunks = [doc['payload']["text"] for doc in retrieve_chunks]
     
     # format template prompt
@@ -304,7 +307,7 @@ with gr.Blocks(theme="soft", css=CSS) as demo:
     # source_text.change(lang_detector, source_text)
     # submit.click(fn=translate, inputs=[source_text, source_lang, target_lang, inst, prompt, max_length, temperature, top_p, rp], outputs=[output_text])
     
-    docs_path = "docs/*.txt"
+    docs_path = "/docs/*.txt"
     status = insert_docs(docs_path)
     print(status)
 
