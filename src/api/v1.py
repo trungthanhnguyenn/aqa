@@ -154,17 +154,18 @@ async def chunker(request: Item) -> JSONResponse:
         for i in range(0, len(format_insert_chunks), settings.ctx_batch_size):
             batch_text_format = format_insert_chunks[i:i+settings.ctx_batch_size]
             # insert chunks to db
-            response = await services.insert_chunks(batch_text_format)
-            if response.status_code != 200:
-                print(response.json())
-                return JSONResponse(content={"error": "Insert chunks failed!"}, status_code=500)
+            response = services.insert_chunks(batch_text_format, settings.qdrant_collection_name)
+            if response.get("Error") is not None:
+                return JSONResponse(
+                    content=response, 
+                    status_code=500
+                )
         
         return JSONResponse(content={
             "success": f"Insert number of {len(format_insert_chunks)} to {settings.qdrant_collection_name} DB successfully!"
         })
-    
     except Exception as e:
-        return JSONResponse(content={"error": "Insert chunks failed!"})
+        return JSONResponse(content=response, status_code=500)
 
 ####################
 # QA API
