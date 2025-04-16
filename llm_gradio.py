@@ -91,7 +91,7 @@ def insert_docs(docs_path: str):
         if chunks_status.get("error"):
             print("Error inserting chunks:", chunks_status.get("error"))
             continue
-    return chunks_status
+    return "Process completed!"
 
 def retrieve_docs(query: str, top_k: int = 5):
     response = requests.post(
