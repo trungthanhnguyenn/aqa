@@ -5,6 +5,7 @@ ENV PYTHONUNBUFFERED 1
 ADD . .
 RUN python -m venv /venv
 ENV PATH="/venv/bin:$PATH"
+RUN apt-get update && apt-get install -y git
 RUN pip install -r requirements.txt
 
 
