@@ -108,24 +108,16 @@ def retrieve_docs(query: str, top_k: int = 5):
 
 def parse_prompt_template(instruction: str, query: str, chunks: List[str], prompt_template: str):
     #
-    # instruction = f"`{inst}`"
-    # 
     context_template = ""
     for i, c in enumerate(chunks):
         context_template += f"{c}\n\n"
     # 
-    # prompt_template = prompt_template.format(
-    #     instruction=instruction,
-    #     query=query,
-    #     context=context_template,
-    # )
-    
     prompt_template = open("templates/prompt.txt", "r").read()
     prompt_template = jinja2.Template(prompt_template).render(
         context=context_template,
         prompt=query,
     )
-
+    # apply chat template
     prompt = requests.post(
         url=f"{API_URL}/chat_template",
         params={
@@ -170,7 +162,7 @@ def run(
         chunks=retrieve_chunks
     )
 
-    # generate text
+    # generate response
     generate_kwargs = dict(
         # input_ids=input_ids,
         max_tokens=max_length, 
@@ -180,37 +172,20 @@ def run(
     )
     payload = {
         "prompt": conversation,
-        "sampling_parameters": generate_kwargs
+        "sampling_parameters": generate_kwargs,
+        "show_thinking": True,
     }
-    
+    # get response
     llm_url = f"{API_URL}/generate_stream"
     response = requests.post(url=llm_url, json=payload, stream=True)
 
-    # yield conversation[len(prompt):]
-    # Print the outputs.
-    end_think = True
+    # stream the outputs.
     generated_text = ""
-    for output in response.iter_lines():
-        text_output = output.decode("utf-8")
-        # for token in text_output.split(" "):
-        #     yield token
+    for text_output in response.iter_lines(decode_unicode=True):
+        generated_text += text_output + "\n"
+        print("text_output", text_output)
+        yield generated_text
 
-        if text_output == "</think>":
-            end_think = True
-
-        # if end_think and text_output != "</think>": deepseek
-        if end_think and text_output != "<|start_header_id|>assistant<|end_header_id|>": # llama
-            generated_text += text_output + "\n"
-
-            # print("generated_text", generated_text)
-            print("text_output", text_output)
-            yield generated_text
-            time.sleep(0.3)
-
-
-    # return generated_text
-
-    # return generated_text
 
 CSS = """
     h1 {
@@ -230,15 +205,7 @@ with gr.Blocks(theme="soft", css=CSS) as demo:
     # gr.Markdown(TITLE)
     with gr.Row():
         with gr.Column(scale=1):
-            # source_lang = gr.Textbox(
-            #     label="Source Lang(Auto-Detect)",
-            #     value="English",
-            # )
-            # target_lang = gr.Dropdown(
-            #     label="Target Lang",
-            #     value="Spanish",
-            #     choices=LANG_LIST,
-            # )
+
             max_length = gr.Slider(
                 label="Max Length",
                 minimum=512,
@@ -273,17 +240,6 @@ with gr.Blocks(theme="soft", css=CSS) as demo:
                 file_count="multiple"
             )
 
-            
-            # inst = gr.Textbox(
-            #     label="Instruction",
-            #     value="Answering these following question.",
-            #     lines=3,
-            # )
-            # prompt = gr.Textbox(
-            #     label="Prompt",
-            #     value="""""",
-            #     lines=8,
-            # )
                 
         with gr.Column(scale=4):
             source_text = gr.Textbox(
@@ -301,37 +257,16 @@ with gr.Blocks(theme="soft", css=CSS) as demo:
         submit = gr.Button(value="Submit")
         
         clear = gr.ClearButton([source_text, output_text])
-    # gr.Markdown(LICENSE)
-    
-    # source_text.change(lang_detector, source_text, source_lang)
-    # source_text.change(lang_detector, source_text)
-    # submit.click(fn=translate, inputs=[source_text, source_lang, target_lang, inst, prompt, max_length, temperature, top_p, rp], outputs=[output_text])
-    
+
+    #* Insert documents
     docs_path = "/docs/*.txt"
     status = insert_docs(docs_path)
     print(status)
-
-    # submit.click(fn=run, inputs=[source_text, inst, prompt, max_length, temperature, top_p, rp], outputs=[output_text])
+    #
     submit.click(fn=run, inputs=[source_text, max_length, temperature, top_p, rp], outputs=[output_text])
     #
     upload_button.click(fn=handle_file_upload, inputs=[file_upload], outputs=[output_text])
 
-    # with gr.Accordion("Tutorials", open=True):
-    #     gr.Markdown("## Instruction")
-    #     gr.Textbox(value="For examples: Supposed that you are the professor in education.",
-    #             label="The instruction that describes a command.")
-
-    #     gr.Markdown("\n\n\n### Prompt: Format template used to achieve tasks.")
-    #     gr.Textbox(value="Answer questions based on a given context",
-    #                 label="1. Question Answering")
-
-    #     gr.Markdown("\n\n\n### Question: The input text that you want to ask.")
-    #     gr.Markdown("### Generation Configuration:")
-    #     gr.Textbox(value="The maximum length of the generated text.", label="1. Max Length")
-    #     gr.Textbox(value="Lower values make the output more deterministic, while higher values increase randomness.", label='2. Temperature')
-    #     gr.Textbox(value="Lower values make the model consider fewer options, while higher values allow more diverse outputs.", label="3. Top_p")
-    #     gr.Textbox(value="Lower values make the model consider repeated tokens less likely to be chosen again", label="4. Repetition Penalty")
-        
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0")
