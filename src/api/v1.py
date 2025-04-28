@@ -205,17 +205,29 @@ async def generate_stream(request: Request):
     user_input = await request.json()
     prompt_text = user_input.get("prompt", "")
     sampling_parameters = user_input.get("sampling_parameters", {})
-    sampling_parameters["stream"] = True
+    show_thinking = user_input.get("show_thinking", False)
 
     if not prompt_text:
         return {"error": "Missing 'prompt' in request payload"}
 
     payload = {
-        "text_input": prompt_text,
-        "parameters": sampling_parameters,
+        "prompt": prompt_text,
+        "sampling_parameters": sampling_parameters,
+        "show_thinking": show_thinking,
     }
+
+    # temp fix different loop error
+    llm_module_dump = LLMModule(
+        model_path=settings.llm_model_serving_path,
+        model_name=settings.llm_model_name,
+        model_version=settings.llm_model_version,
+        model_server_url=settings.llm_triton_url,
+        tokenizer_name=settings.llm_tokenizer_name,
+        streaming=settings.streaming_response,
+        config_file_name=settings.llm_config_file_name,
+    )
     return StreamingResponse(
-        services.llm_module.generate_stream(payload=payload), 
+        llm_module_dump.generate_stream(payload=payload), 
         media_type="application/json"
     )
 
