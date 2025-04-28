@@ -51,6 +51,7 @@ services:
     image: heronq02/dsclient:24.12
     volumes:
       - predown_models:/predown_models
+      - ./templates:/templates
       - ./docs:/docs
     env_file:
       - .env
