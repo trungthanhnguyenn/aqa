@@ -15,17 +15,72 @@ from src.utils.utils import read_file
 
 load_dotenv()
 
-# API
+# API AND KEYCLOAK URL
 API_URL = os.environ.get("API_URL", "http://localhost:1997")
 GOOGLE_URL_API = os.environ.get("GOOGLE_URL_API", "")
+KEYCLOAK_URL = os.environ.get("KEYCLOAK_URL_DOCKER", "http://keycloak:8080")
+REALM = os.environ.get("KEYCLOAK_REALM", "fastapi-realm")
+CLIENT_ID = os.environ.get("KEYCLOAK_CLIENT_ID", "fastapi-client")
+CLIENT_SECRET = os.environ.get("KEYCLOAK_CLIENT_SECRET", "your_client_secret")
 
-#
+### SETUP USER FOR fastapi-realm
+USERNAME = os.environ.get("KEYCLOAK_USERNAME", "your_username")
+PASSWORD = os.environ.get("KEYCLOAK_PASSWORD", "your_password")
+
 
 ##########
 # Function
 ##########
-
-    
+class TokenManager:
+    def __init__(self):
+        self.access_token = None
+        self.refresh_token = None
+        self.token_expiry = 0
+        
+    def login(self):
+        url = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
+        payload = {
+            "grant_type": "password",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "username": USERNAME,
+            "password": PASSWORD,
+        }
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        token_data = response.json()
+        self.access_token = token_data["access_token"]
+        self.refresh_token = token_data["refresh_token"]
+        self.token_expiry = time.time() + token_data["expires_in"] - 30  # Refresh half minute before expiry
+        print("LOGIN SUCCESSFUL")
+        
+    def refresh(self):
+        url = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
+        payload = {
+            "grant_type": "refresh_token",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "refresh_token": self.refresh_token,
+        }
+        response = requests.post(url, data=payload)
+        if response.status_code != 200:
+            print("⚠️ Refresh failed, relogin...")
+            self.login()
+            return
+        token_data = response.json()
+        self.access_token = token_data["access_token"]
+        self.refresh_token = token_data["refresh_token"]
+        self.token_expiry = time.time() + token_data["expires_in"] - 30
+        print("🔄 Token refreshed!")
+        
+    def get_access_token(self):
+        if self.access_token is None or time.time() >= self.token_expiry:
+            print("🔑 Access token expired, refreshing...")
+            self.refresh()
+        return self.access_token
+token_manager = TokenManager()
+token_manager.login()
+        
 def handle_file_upload(files):
     """
     Handles the file upload process:
@@ -86,6 +141,9 @@ def insert_docs(docs_path: str):
                     "file_size": file_size,
                     "created_time": created_time,
                 }
+            },
+            headers={
+                "Authorization": f"Bearer {token_manager.get_access_token()}"
             }
         ).json()
         if chunks_status.get("error"):
@@ -100,6 +158,9 @@ def retrieve_docs(query: str, top_k: int = 5):
             "query": query,
             "is_rerank": False,
         },
+        headers={
+            "Authorization": f"Bearer {token_manager.get_access_token()}"
+        }
     )
     retrieve_docs = response.json()
     return retrieve_docs
@@ -123,6 +184,9 @@ def parse_prompt_template(instruction: str, query: str, chunks: List[str], promp
         params={
             'text': prompt_template
         },
+        headers={
+            "Authorization": f"Bearer {token_manager.get_access_token()}"
+        }
     ).json()
     #
     print("prompt_template", prompt)
@@ -148,6 +212,9 @@ def run(
             'query': source_text,
             "is_rerank": False
         },
+        headers={
+            "Authorization": f"Bearer {token_manager.get_access_token()}"
+        }
     ).json()
     print("retrieve_chunks", retrieve_chunks)
     retrieve_chunks = [doc['payload']["text"] for doc in retrieve_chunks]
@@ -177,7 +244,9 @@ def run(
     }
     # get response
     llm_url = f"{API_URL}/generate_stream"
-    response = requests.post(url=llm_url, json=payload, stream=True)
+    # response = requests.post(url=llm_url, json=payload, headers={"Authorization": f"Bearer {token_manager.get_access_token()}"} stream=True)
+    response = requests.post(url=llm_url, json=payload, headers={"Authorization": f"Bearer {token_manager.get_access_token()}"}, stream=True)
+
 
     # stream the outputs.
     generated_text = ""

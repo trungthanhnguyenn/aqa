@@ -1,13 +1,24 @@
-from typing import List
+from typing import List, Annotated
 from pydantic import BaseModel
+
+from jwt import PyJWKClient
+import jwt
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2AuthorizationCodeBearer
 
 from src.configs.settings import Settings
 from src.services.v1 import ServicesV1
 from src.module.module import EmbeddingModule, RerankModule, ChunkerModule, LLMModule
 from src.db.qdrant_db import QdrantChunksDB
+
+import logging
+
+# Logger config
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 ####################
 # Init modules
@@ -64,6 +75,53 @@ llm_module = LLMModule(
     config_file_name=settings.llm_config_file_name,
 )
 
+###############
+# Keycloak Configs
+###############
+
+KEYCLOAK_URL = settings.keycloak_url
+KEYCLOAK_REALM = settings.keycloak_realm
+KEYCLOAK_AUDIENCE = settings.keycloak_audience
+ALGORITHM = settings.algorithm
+
+TOKEN_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+AUTHORIZE_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth"
+JWKS_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
+
+##############
+# Auth Functions
+##############
+oauth_2_scheme = OAuth2AuthorizationCodeBearer(
+    tokenUrl=TOKEN_URL,
+    authorizationUrl=AUTHORIZE_URL,
+    refreshUrl=TOKEN_URL,
+)
+
+##############
+# Verify JWT Token
+##############
+async def verify_access_token(
+    access_token: Annotated[str, Depends(oauth_2_scheme)]
+):
+    optional_custom_headers = {"User-agent": "custom-user-agent"}
+    jwks_client = PyJWKClient(JWKS_URL, headers=optional_custom_headers)
+    try:
+        # Get the public key from the JWKS endpoint
+        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        data = jwt.decode(
+            access_token,
+            signing_key.key,
+            algorithms=[ALGORITHM],
+            audience=KEYCLOAK_AUDIENCE,
+            options={"verify_exp": True},
+        )
+        logger.info(f"Verified token: {data}")
+        return data
+    except jwt.exceptions.InvalidTokenError as e:
+        logger.error(f"Invalid token: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+
 # Database Configs
 db = QdrantChunksDB(url=settings.qdrant_db)
 
@@ -85,21 +143,24 @@ router = APIRouter(prefix="/v1")
 
 ####################
 # Retrieval API
-@router.get("/chunks")
+# @router.get("/chunks")
+@router.get("/chunks", dependencies=[Depends(oauth_2_scheme)])
 async def get_chunks() -> JSONResponse:
     # add remote with async func
     chunker_id = settings.qdrant_collection_name
     response = services.chunk_db.get_chunks(chunker_id=chunker_id)
     return JSONResponse(content=response)
 
-@router.post("/chunks")
+# @router.post("/chunks")
+@router.post("/chunks", dependencies=[Depends(oauth_2_scheme)])
 async def insert_chunks(chunks: List[dict]) -> JSONResponse:
     # add remote with async func
     chunker_id = settings.qdrant_collection_name
     response = services.insert_chunks(chunks, chunker_id)
     return JSONResponse(content=response)
 
-@router.delete("/chunks/{chunk_id}")
+# @router.delete("/chunks/{chunk_id}")
+@router.delete("/chunks/{chunk_id}", dependencies=[Depends(oauth_2_scheme)])
 async def delete_chunk_id(chunk_id: str) -> JSONResponse:        
     # add remote with async func
     chunker_id = settings.qdrant_collection_name
@@ -112,7 +173,8 @@ class Item(BaseModel):
     text: str
     metadata: dict = None
 
-@router.get("/documents/{doc_id}")
+# @router.get("/documents/{doc_id}")
+@router.get("/documents/{doc_id}", dependencies=[Depends(oauth_2_scheme)])
 async def get_doc_id(doc_id: str) -> JSONResponse:
     chunker_id = settings.qdrant_collection_name
     # add remote with async func
@@ -122,7 +184,8 @@ async def get_doc_id(doc_id: str) -> JSONResponse:
     # format response
     return JSONResponse(content=response)
 
-@router.delete("/documents/{doc_id}")
+# @router.delete("/documents/{doc_id}")
+@router.delete("/documents/{doc_id}", dependencies=[Depends(oauth_2_scheme)])
 async def delete_doc_id(doc_id: str) -> JSONResponse:
     chunker_id = settings.qdrant_collection_name
     # add remote with async func
@@ -130,7 +193,8 @@ async def delete_doc_id(doc_id: str) -> JSONResponse:
     return JSONResponse(content=response)
 
 # send n docs to the server
-@router.post("/documents")
+# @router.post("/documents")
+@router.post("/documents", dependencies=[Depends(oauth_2_scheme)])
 async def chunker(request: Item) -> JSONResponse:
     # chunking
     chunks = services.chunking(request.text)
@@ -169,7 +233,8 @@ async def chunker(request: Item) -> JSONResponse:
 
 ####################
 # QA API
-@router.post("/queries")
+# @router.post("/queries")
+@router.post("/queries", dependencies=[Depends(oauth_2_scheme)])
 async def retrieve_chunks(query: str, is_rerank: bool = False) -> JSONResponse:
     chunker_id = settings.qdrant_collection_name
     # add remote with async func
@@ -188,7 +253,8 @@ async def retrieve_chunks(query: str, is_rerank: bool = False) -> JSONResponse:
 
 ####################
 # LLM API
-@router.post("/chat_template")
+# @router.post("/chat_template")
+@router.post("/chat_template", dependencies=[Depends(oauth_2_scheme)])
 async def chat_template(text: str) -> JSONResponse:
     """
     """

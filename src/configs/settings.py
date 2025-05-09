@@ -44,3 +44,8 @@ class Settings(BaseSettings):
     threshold: float = 0.5
     #
     model_config = SettingsConfigDict(env_file=".env", extra='ignore')
+    #
+    keycloak_url: str
+    keycloak_realm: str
+    keycloak_audience: str
+    algorithm: str = "RS256"

@@ -3,6 +3,24 @@ volumes:
   deepseek_data:
 
 services:
+
+  ### Keycloak service
+  keycloak:
+    image: "quay.io/keycloak/keycloak:latest"
+    command: "start-dev --import-realm"
+    restart: "on-failure"
+    environment:
+      - "KC_BOOTSTRAP_ADMIN_USERNAME=admin"
+      - "KC_BOOTSTRAP_ADMIN_PASSWORD=admin"
+    volumes:
+      - ./realm-export-1.json:/opt/keycloak/data/import/myrealm.json
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/fastapi-realm"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
   rag:
     image: heronq02/tritonserver:24.12-cpuonly
     volumes:
@@ -42,7 +60,7 @@ services:
       - "1999:6333"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6333"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 2
 
@@ -53,6 +71,9 @@ services:
       - predown_models:/predown_models
       - ./templates:/templates
       - ./docs:/docs
+      - ./src:/src
+      - ./llm_gradio.py:/llm_gradio.py
+      - ./mainapi.py:/mainapi.py
     env_file:
       - .env
     tty: true
