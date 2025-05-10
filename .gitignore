@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Folder docs and qdrant_hub
+/docs/
+/qdrant_hub/

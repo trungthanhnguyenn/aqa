@@ -1,4 +1,4 @@
-# AQA_KEYCLOAKKEYCLOAK
+# AQA_KEYCLOAK
 AQA (Asymetric Question Answering) inference microservices with Keycloak
 
 
@@ -13,8 +13,9 @@ AQA (Asymetric Question Answering) inference microservices with Keycloak
     cd aqa_keycloak
     docker compose up -d
     ```
-    - After the docker run, go to keycloak 'http://localhost:8080/realms/fastapi-realm' and create user
-    fill your realm and user info in llm_gradio.py
+    - After the docker run, go to keycloak 'http://localhost:8080/realms/fastapi-realm'
+    - Choose **fastapi-realm** in "Manage realms"
+    - Create user for **fastapi-realm** after that fill your realm and user info in **llm_gradio.py**
     - The API service will be available at `http://localhost:2222`.
     - The Gradio UI Chat will be available at `http://localhost:2223`.
 
